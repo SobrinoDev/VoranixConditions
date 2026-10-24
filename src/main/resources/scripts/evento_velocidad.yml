@@ -1,0 +1,44 @@
+# Script de ejemplo: evento global con efectos permanentes mientras esté activo.
+# Truco: un "timer" que reaplica el efecto un poco más largo que su intervalo.
+# Al desactivar el script el efecto se acaba solo en pocos segundos.
+name: evento_velocidad
+description: "Velocidad II y salto para todos, y los jugadores hacen +3 de daño"
+enabled: false
+
+triggers:
+  - on: timer
+    interval: 2s          # cada cuánto se repite (t = ticks, s = segundos, m = minutos)
+    per: player           # player = una vez por jugador conectado | none = una sola vez
+    conditions:
+      - "{player.gamemode} != SPECTATOR"
+    effects:
+      potion:             # varios efectos = lista
+        - type: speed
+          target: player
+          level: 2
+          duration: 3s
+          particles: false
+        - type: jump_boost
+          target: player
+          level: 1
+          duration: 3s
+          particles: false
+
+  - on: damage
+    conditions:
+      - "{attacker.is_player} == true"
+    actions:
+      - damage_add: 3
+
+  # 10% de probabilidad de lanzar rayo al matar un mob
+  - on: death
+    conditions:
+      - "{killer.is_player} == true && {victim.is_player} == false"
+      - "{random} < 0.10"
+    actions:
+      - lightning:
+          target: victim
+          fake: true
+      - message:
+          target: killer
+          text: "<yellow>⚡ ¡Golpe de suerte!"

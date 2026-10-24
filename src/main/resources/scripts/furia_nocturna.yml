@@ -1,0 +1,40 @@
+# Script de ejemplo: de noche los zombies pegan más fuerte y envenenan.
+# Actívalo con: /vcondition script furia_nocturna true
+name: furia_nocturna
+description: "Zombies +50% daño de noche y envenenan al golpear"
+enabled: false   # estado por defecto (luego se guarda el que pongas con el comando)
+
+triggers:
+  # Se ejecuta cada vez que una entidad golpea a otra
+  - on: damage
+    conditions:
+      - "{attacker.type} == ZOMBIE"
+      - "{world.time} >= 13000"
+    effects:
+      potion:
+        type: poison
+        target: victim
+        level: 1
+        duration: 5s
+    actions:
+      - damage_multiply: 1.5
+      - actionbar:
+          target: victim
+          text: "<dark_red>¡La furia nocturna te alcanza!"
+
+  # Avisos al activar / desactivar el script (se ejecuta para cada jugador conectado)
+  - on: enable
+    actions:
+      - message:
+          target: player
+          text: "<red>☠ Furia nocturna activada. Cuidado con los zombies."
+      - sound:
+          target: player
+          sound: entity.wither.spawn
+          volume: 0.6
+          pitch: 1.2
+  - on: disable
+    actions:
+      - message:
+          target: player
+          text: "<green>La furia nocturna terminó."

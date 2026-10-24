@@ -1,0 +1,12 @@
+name: VoranixConditions
+version: '${version}'
+main: com.voranix.conditions.VoranixConditions
+api-version: '26.3'
+author: SobrinoDev
+description: Scripts activables en caliente y mobs personalizados con BetterModel
+softdepend: [BetterModel]
+
+permissions:
+  voranixconditions.admin:
+    description: Usar /vcondition
+    default: op

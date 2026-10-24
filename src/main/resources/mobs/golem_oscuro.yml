@@ -1,0 +1,128 @@
+# Mob personalizado de ejemplo.
+# Spawn manual:  /vcondition mob spawn golem_oscuro
+id: golem_oscuro
+base: iron_golem            # entidad vanilla que da la IA y la hitbox
+model: golem_oscuro         # nombre del modelo en BetterModel (plugins/BetterModel/models/golem_oscuro.bbmodel)
+name: "<dark_purple><bold>Gólem Oscuro"
+name-visible: true
+
+# Atributos (opcionales)
+health: 200
+damage: 14
+speed: 0.28
+scale: 1.0
+armor: 6
+knockback-resistance: 0.8
+follow-range: 32
+silent: false
+drops-vanilla: false
+
+# Si pones un script aquí, los comportamientos solo funcionan cuando ese script está activo
+# script: invasion_oscura
+
+# Aparición natural: reemplaza spawns vanilla con cierta probabilidad
+natural-spawn:
+  replace: zombie
+  chance: 0.02
+  worlds: [world]
+
+# Animaciones de BetterModel que se reproducen solas en cada evento (idle/walk ya las maneja BetterModel)
+animations:
+  attack: attack
+  hurt: hurt
+  spawn: spawn
+
+# Comportamientos: mismos eventos/condiciones/acciones que los scripts.
+# Roles disponibles: entity (el mob), target (a quién persigue), victim, attacker, killer, player
+behaviors:
+  - on: spawn
+    actions:
+      - sound:
+          target: entity
+          sound: entity.warden.emerge
+          pitch: 0.8
+      - particle:
+          target: entity
+          particle: large_smoke
+          count: 40
+          spread: 1
+
+  # Cada 5 s, si tiene objetivo cerca, hace un golpe de área
+  - on: tick
+    interval: 5s
+    conditions:
+      - "{target.exists} == true"
+      - "{entity.distance:target} < 6"
+    actions:
+      - animate:
+          target: entity
+          animation: slam
+      - delay: 12t
+      - particle:
+          target: entity
+          particle: explosion
+          count: 6
+          spread: 2
+      - sound:
+          target: entity
+          sound: entity.generic.explode
+          pitch: 0.7
+      - damage:
+          target: nearby_players:5
+          amount: 8
+      - knockback:
+          target: nearby_players:5
+          strength: 1.4
+          y: 0.6
+
+  # Cada 8 s, si el objetivo está lejos, salta hacia él
+  - on: tick
+    interval: 8s
+    conditions:
+      - "{target.exists} == true"
+      - "{entity.distance:target} > 8 && {entity.distance:target} < 20"
+    actions:
+      - leap:
+          target: entity
+          towards: target
+          strength: 1.6
+          y: 0.8
+
+  - on: attack
+    conditions:
+      - "{random} < 0.3"
+    effects:
+      potion:
+        type: wither
+        target: victim
+        level: 2
+        duration: 3s
+    actions:
+      - message:
+          target: victim
+          text: "<dark_purple>El gólem drena tu vida..."
+
+  # Con menos de la mitad de vida entra en furia
+  - on: hurt
+    conditions:
+      - "{entity.health} < 100"
+      - "!{entity.has_effect:strength}"
+    effects:
+      potion:
+        - type: strength
+          target: entity
+          level: 2
+          duration: 30s
+        - type: speed
+          target: entity
+          level: 1
+          duration: 30s
+    actions:
+      - broadcast: "<dark_purple>¡El Gólem Oscuro entró en furia!"
+
+  - on: death
+    conditions:
+      - "{killer.is_player} == true"
+    actions:
+      - command: "give {killer.name} diamond 3"
+      - broadcast: "<gold>{killer.name} derrotó al Gólem Oscuro"
