@@ -68,8 +68,12 @@ public final class EventBridge implements Listener {
     @EventHandler(priority = EventPriority.HIGH)
     public void onDeath(EntityDeathEvent event) {
         LivingEntity victim = event.getEntity();
-        Entity killer = event.getDamageSource().getCausingEntity();
-        if (killer == null) killer = victim.getKiller();
+        // 1.20.1 no tiene DamageSource: se usa el último golpe recibido
+        Entity killer = victim.getKiller();
+        if (killer == null && victim.getLastDamageCause() instanceof EntityDamageByEntityEvent last) {
+            killer = last.getDamager();
+            if (killer instanceof Projectile p) killer = p.getShooter() instanceof Entity shooter ? shooter : null;
+        }
 
         plugin.scripts().fire("death", new Context().event(event).role("victim", victim).role("killer", killer));
         CustomMob mob = plugin.mobs().of(victim);

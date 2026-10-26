@@ -61,8 +61,8 @@ public record Action(String name, List<String> positional, Map<String, String> n
     public static Action parse(Object o) {
         if (o instanceof Map<?, ?> map && !map.isEmpty()) {
             var entries = new ArrayList<>(map.entrySet());
-            String name = entries.getFirst().getKey().toString().toLowerCase(Locale.ROOT);
-            Object value = entries.getFirst().getValue();
+            String name = entries.get(0).getKey().toString().toLowerCase(Locale.ROOT);
+            Object value = entries.get(0).getValue();
             Map<String, String> named = new LinkedHashMap<>();
             if (value instanceof Map<?, ?> params) {
                 putAll(named, params);
@@ -78,7 +78,7 @@ public record Action(String name, List<String> positional, Map<String, String> n
         String line = String.valueOf(o);
         List<String> tokens = tokenize(line);
         if (tokens.isEmpty()) throw new IllegalArgumentException("acción vacía");
-        return new Action(tokens.getFirst().toLowerCase(Locale.ROOT), tokens.subList(1, tokens.size()), Map.of(), line);
+        return new Action(tokens.get(0).toLowerCase(Locale.ROOT), tokens.subList(1, tokens.size()), Map.of(), line);
     }
 
     private static void putAll(Map<String, String> out, Map<?, ?> params) {

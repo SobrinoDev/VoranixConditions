@@ -3,8 +3,8 @@ package com.voranix.conditions.mob;
 import com.voranix.conditions.VoranixConditions;
 import com.voranix.conditions.script.Context;
 import com.voranix.conditions.script.Registries;
+import com.voranix.conditions.script.Text;
 import com.voranix.conditions.script.Trigger;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.attribute.Attribute;
@@ -15,7 +15,6 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
-import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.persistence.PersistentDataType;
 
 import java.io.File;
@@ -35,7 +34,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public final class MobManager {
 
-    public static final NamespacedKey KEY = new NamespacedKey("voranixconditions", "mob");
+    public static final NamespacedKey KEY = NamespacedKey.fromString("voranixconditions:mob");
     private static final String[] DEFAULTS = {"mobs/golem_oscuro.yml"};
 
     private final VoranixConditions plugin;
@@ -88,8 +87,11 @@ public final class MobManager {
             replace = Registries.entity(replaceName);
             if (replace == null) plugin.getLogger().warning(file.getName() + ": entidad '" + replaceName + "' no existe");
         }
+        if (yml.isSet("scale")) {
+            plugin.getLogger().warning(file.getName() + ": 'scale' no existe en 1.20.1 (llegó en 1.20.5), se ignora");
+        }
         return new CustomMob(id, base, yml.getString("model"), yml.getString("name"), yml.getBoolean("name-visible", true),
-                number(yml, "health"), number(yml, "damage"), number(yml, "speed"), number(yml, "scale"),
+                number(yml, "health"), number(yml, "damage"), number(yml, "speed"),
                 number(yml, "armor"), number(yml, "knockback-resistance"), number(yml, "follow-range"),
                 yml.getBoolean("silent", false), yml.getBoolean("drops-vanilla", false), yml.getString("script"),
                 animations, Trigger.fromList(yml.getMapList("behaviors"), file.getName(), plugin.getLogger()),
@@ -121,7 +123,8 @@ public final class MobManager {
     public LivingEntity spawn(String id, Location location) {
         CustomMob mob = get(id);
         if (mob == null) return null;
-        Entity spawned = location.getWorld().spawnEntity(location, mob.base(), CreatureSpawnEvent.SpawnReason.CUSTOM,
+        // En Spigot, World#spawn con Consumer marca el spawn como CUSTOM y configura el mob antes de aparecer
+        Entity spawned = location.getWorld().spawn(location, mob.base().getEntityClass(),
                 e -> configure(mob, (LivingEntity) e));
         LivingEntity living = (LivingEntity) spawned;
         if (!living.isValid()) return null;
@@ -133,29 +136,25 @@ public final class MobManager {
     private void configure(CustomMob mob, LivingEntity e) {
         e.getPersistentDataContainer().set(KEY, PersistentDataType.STRING, mob.id());
         if (mob.name() != null) {
-            e.customName(MiniMessage.miniMessage().deserialize(mob.name()));
+            e.setCustomName(Text.color(mob.name()));
             e.setCustomNameVisible(mob.nameVisible());
         }
         e.setSilent(mob.silent());
         e.setRemoveWhenFarAway(false);
         e.setPersistent(true);
-        attribute(e, Attribute.MAX_HEALTH, mob.health());
-        attribute(e, Attribute.ATTACK_DAMAGE, mob.damage());
-        attribute(e, Attribute.MOVEMENT_SPEED, mob.speed());
-        attribute(e, Attribute.SCALE, mob.scale());
-        attribute(e, Attribute.ARMOR, mob.armor());
-        attribute(e, Attribute.KNOCKBACK_RESISTANCE, mob.knockbackResistance());
-        attribute(e, Attribute.FOLLOW_RANGE, mob.followRange());
+        attribute(e, Attribute.GENERIC_MAX_HEALTH, mob.health());
+        attribute(e, Attribute.GENERIC_ATTACK_DAMAGE, mob.damage());
+        attribute(e, Attribute.GENERIC_MOVEMENT_SPEED, mob.speed());
+        attribute(e, Attribute.GENERIC_ARMOR, mob.armor());
+        attribute(e, Attribute.GENERIC_KNOCKBACK_RESISTANCE, mob.knockbackResistance());
+        attribute(e, Attribute.GENERIC_FOLLOW_RANGE, mob.followRange());
         if (mob.health() != null) e.setHealth(mob.health());
     }
 
     private static void attribute(LivingEntity e, Attribute attribute, Double value) {
         if (value == null) return;
+        // Spigot no permite agregar atributos que la entidad no tiene (p. ej. daño en mobs pasivos)
         AttributeInstance inst = e.getAttribute(attribute);
-        if (inst == null) {
-            e.registerAttribute(attribute);
-            inst = e.getAttribute(attribute);
-        }
         if (inst != null) inst.setBaseValue(value);
     }
 

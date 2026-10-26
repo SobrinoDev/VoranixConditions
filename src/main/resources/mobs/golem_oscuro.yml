@@ -10,7 +10,6 @@ name-visible: true
 health: 200
 damage: 14
 speed: 0.28
-scale: 1.0
 armor: 6
 knockback-resistance: 0.8
 follow-range: 32

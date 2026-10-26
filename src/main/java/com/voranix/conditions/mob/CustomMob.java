@@ -16,7 +16,6 @@ public record CustomMob(
         Double health,
         Double damage,
         Double speed,
-        Double scale,
         Double armor,
         Double knockbackResistance,
         Double followRange,

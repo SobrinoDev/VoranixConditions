@@ -1,15 +1,20 @@
 # VoranixConditions
 
-Plugin para **Paper 26.3** (Java 25) que permite:
+Plugin para **Spigot 1.20.1** (Java 17 o superior) que permite:
+
+> Esta es la rama `spigot-1.20.1`. La versión para Paper 26.3 está en la rama `main`.
 
 - Crear **scripts** en YAML que cambian cómo se comportan los mobs y los jugadores (daño, efectos de poción, rayos, mensajes...), y activarlos o desactivarlos en cualquier momento.
 - Crear **mobs nuevos** con modelos de **BetterModel** y darles comportamientos propios.
 
 ## Instalación
 
-1. Compila con `gradlew build` → `build/libs/VoranixConditions-1.0.0.jar`.
-2. Copia el jar a `plugins/` (y [BetterModel](https://hangar.papermc.io/toxicity188/BetterModel) si vas a usar modelos).
-3. Al iniciar se crean `plugins/VoranixConditions/scripts/` y `mobs/` con ejemplos.
+1. Compila con `gradlew build` → `build/libs/VoranixConditions-1.0.0-spigot1.20.1.jar` (ya incluye ACF y MiniMessage).
+2. Copia el jar a `plugins/`.
+3. Para modelos instala [BetterModel 1.4.2](https://modrinth.com/plugin/bettermodel/version/1.4.2), la última versión compatible con 1.20.1.
+   **Ojo:** BetterModel necesita que el servidor corra con **Java 21** (Spigot 1.20.1 funciona bien con Java 21).
+   Sin BetterModel el plugin funciona igual, pero los mobs se ven con su modelo vanilla.
+4. Al iniciar se crean `plugins/VoranixConditions/scripts/` y `mobs/` con ejemplos.
 
 ## Comandos (permiso `voranixconditions.admin`, alias `/vc`)
 
@@ -142,10 +147,16 @@ actions:
 > Efectos "permanentes" mientras el script esté activo: usa un `timer` que reaplique el efecto con una duración
 > un poco mayor que el intervalo (ver `evento_velocidad.yml`). Al desactivar el script el efecto se acaba solo.
 
+### Diferencias con la versión Paper
+
+- No existe el atributo `scale` (llegó en Minecraft 1.20.5).
+- Las partículas se pueden escribir con su nombre de Minecraft (`large_smoke`, `dust`, `explosion`...) o con el nombre antiguo de Bukkit (`SMOKE_LARGE`, `REDSTONE`...).
+- Los textos usan MiniMessage (`<red>`, `<gradient:...>`) y también aceptan códigos `&c`.
+
 ## Mobs personalizados (`mobs/*.yml`)
 
 Mira `mobs/golem_oscuro.yml`. Un mob tiene una entidad `base` vanilla (da la IA y la hitbox), un `model` de BetterModel
-(el nombre del `.bbmodel` en `plugins/BetterModel/models/`), atributos (`health`, `damage`, `speed`, `scale`, `armor`,
+(el nombre del `.bbmodel` en `plugins/BetterModel/models/`), atributos (`health`, `damage`, `speed`, `armor`,
 `knockback-resistance`, `follow-range`), `natural-spawn` para reemplazar spawns vanilla, `animations` que suenan solas
 y `behaviors` con los mismos eventos/condiciones/acciones que los scripts.
 

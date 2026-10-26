@@ -1,7 +1,6 @@
 package com.voranix.conditions.script;
 
 import com.voranix.conditions.mob.MobManager;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
@@ -110,7 +109,7 @@ public final class Expression {
         }
         if (head.equals("world")) {
             Entity o = ctx.origin();
-            World w = o != null ? o.getWorld() : Bukkit.getWorlds().getFirst();
+            World w = o != null ? o.getWorld() : Bukkit.getWorlds().get(0);
             return worldProp(w, prop.toLowerCase(Locale.ROOT));
         }
         return entityProp(ctx.role(head), prop, ctx);
@@ -160,7 +159,7 @@ public final class Expression {
             case "light" -> String.valueOf(e.getLocation().getBlock().getLightLevel());
             case "health" -> living != null ? format(living.getHealth()) : "0";
             case "max_health" -> {
-                AttributeInstance a = living != null ? living.getAttribute(Attribute.MAX_HEALTH) : null;
+                AttributeInstance a = living != null ? living.getAttribute(Attribute.GENERIC_MAX_HEALTH) : null;
                 yield a != null ? format(a.getValue()) : "0";
             }
             case "on_fire" -> String.valueOf(e.getFireTicks() > 0);
@@ -197,7 +196,8 @@ public final class Expression {
 
     private static String entityName(Entity e) {
         if (e instanceof Player p) return p.getName();
-        return PlainTextComponentSerializer.plainText().serialize(e.name());
+        String custom = e.getCustomName();
+        return custom != null ? org.bukkit.ChatColor.stripColor(custom) : e.getName();
     }
 
     /** Números enteros sin ".0" y decimales con máximo 2 cifras. */

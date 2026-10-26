@@ -1,21 +1,26 @@
 package com.voranix.conditions.command;
 
+import co.aikar.commands.BaseCommand;
+import co.aikar.commands.annotation.CommandAlias;
+import co.aikar.commands.annotation.CommandCompletion;
+import co.aikar.commands.annotation.CommandPermission;
+import co.aikar.commands.annotation.Default;
+import co.aikar.commands.annotation.Description;
+import co.aikar.commands.annotation.Optional;
+import co.aikar.commands.annotation.Subcommand;
+import co.aikar.commands.annotation.Syntax;
+import co.aikar.commands.bukkit.contexts.OnlinePlayer;
 import com.voranix.conditions.VoranixConditions;
 import com.voranix.conditions.mob.CustomMob;
 import com.voranix.conditions.mob.MobManager;
 import com.voranix.conditions.script.Script;
-import io.papermc.paper.command.brigadier.BasicCommand;
-import io.papermc.paper.command.brigadier.CommandSourceStack;
-import net.kyori.adventure.text.minimessage.MiniMessage;
-import org.bukkit.Bukkit;
+import com.voranix.conditions.script.Text;
 import org.bukkit.Location;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 
@@ -24,9 +29,11 @@ import java.util.Locale;
  * /vcondition list | reload | debug
  * /vcondition mob spawn <id> [jugador] | mob list | mob kill [id]
  */
-public final class VConditionCommand implements BasicCommand {
+@CommandAlias("vcondition|vc")
+@CommandPermission("voranixconditions.admin")
+@Description("Administra scripts y mobs de VoranixConditions")
+public final class VConditionCommand extends BaseCommand {
 
-    private static final MiniMessage MM = MiniMessage.miniMessage();
     private static final String PREFIX = "<dark_gray>[<gradient:#a855f7:#6366f1>VConditions</gradient>]</dark_gray> ";
 
     private final VoranixConditions plugin;
@@ -35,115 +42,9 @@ public final class VConditionCommand implements BasicCommand {
         this.plugin = plugin;
     }
 
-    @Override
-    public String permission() {
-        return "voranixconditions.admin";
-    }
-
-    @Override
-    public void execute(CommandSourceStack source, String[] args) {
-        CommandSender sender = source.getSender();
-        if (args.length == 0) {
-            help(sender);
-            return;
-        }
-        switch (args[0].toLowerCase(Locale.ROOT)) {
-            case "script" -> script(sender, args);
-            case "list" -> list(sender);
-            case "reload" -> {
-                plugin.reload();
-                send(sender, "<green>Scripts y mobs recargados.");
-            }
-            case "mob" -> mob(source, args);
-            case "debug" -> {
-                boolean on = !plugin.actions().debug();
-                plugin.actions().debug(on);
-                send(sender, "<gray>Debug " + (on ? "<green>activado<gray>: mira la consola al probar" : "<red>desactivado"));
-            }
-            default -> help(sender);
-        }
-    }
-
-    private void script(CommandSender sender, String[] args) {
-        if (args.length < 2) {
-            send(sender, "<red>Uso: /vcondition script <nombre> <true|false>");
-            return;
-        }
-        Script script = plugin.scripts().get(args[1]);
-        if (script == null) {
-            send(sender, "<red>No existe el script <white>" + args[1]);
-            return;
-        }
-        if (args.length < 3) {
-            send(sender, "<gray>" + script.name() + ": " + state(plugin.scripts().isEnabled(script.name())));
-            return;
-        }
-        String value = args[2].toLowerCase(Locale.ROOT);
-        if (!value.equals("true") && !value.equals("false")) {
-            send(sender, "<red>El valor debe ser <white>true</white> o <white>false");
-            return;
-        }
-        boolean enabled = value.equals("true");
-        plugin.scripts().setEnabled(script.name(), enabled);
-        send(sender, "<gray>Script <white>" + script.name() + "</white> " + state(enabled));
-    }
-
-    private void list(CommandSender sender) {
-        send(sender, "<gray>Scripts:");
-        for (Script s : plugin.scripts().all()) {
-            sender.sendMessage(MM.deserialize(" " + state(plugin.scripts().isEnabled(s.name())) + " <white>" + s.name()
-                    + (s.description().isEmpty() ? "" : " <dark_gray>- <gray>" + s.description())));
-        }
-        if (plugin.scripts().all().isEmpty()) sender.sendMessage(MM.deserialize(" <dark_gray>(ninguno)"));
-    }
-
-    private void mob(CommandSourceStack source, String[] args) {
-        CommandSender sender = source.getSender();
-        String sub = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "list";
-        switch (sub) {
-            case "spawn" -> {
-                if (args.length < 3) {
-                    send(sender, "<red>Uso: /vcondition mob spawn <id> [jugador]");
-                    return;
-                }
-                Location at;
-                if (args.length > 3) {
-                    Player p = Bukkit.getPlayerExact(args[3]);
-                    if (p == null) {
-                        send(sender, "<red>Jugador no conectado.");
-                        return;
-                    }
-                    at = p.getLocation();
-                } else {
-                    at = source.getLocation();
-                }
-                LivingEntity e = plugin.mobs().spawn(args[2], at);
-                send(sender, e != null ? "<green>Spawneado <white>" + args[2] : "<red>No existe el mob <white>" + args[2]);
-            }
-            case "kill" -> {
-                String id = args.length > 2 ? args[2] : null;
-                int count = 0;
-                for (LivingEntity e : new ArrayList<>(plugin.mobs().live())) {
-                    if (id == null || id.equalsIgnoreCase(MobManager.idOf(e))) {
-                        e.remove();
-                        plugin.mobs().untrack(e);
-                        count++;
-                    }
-                }
-                send(sender, "<gray>Eliminados <white>" + count + "</white> mobs.");
-            }
-            default -> {
-                send(sender, "<gray>Mobs personalizados:");
-                for (CustomMob m : plugin.mobs().all()) {
-                    long alive = plugin.mobs().live().stream().filter(e -> m.id().equalsIgnoreCase(MobManager.idOf(e))).count();
-                    sender.sendMessage(MM.deserialize(" <white>" + m.id() + " <dark_gray>(" + m.base().getKey().getKey()
-                            + (m.model() != null ? ", modelo " + m.model() : "") + ") <gray>vivos: " + alive));
-                }
-            }
-        }
-    }
-
-    private void help(CommandSender sender) {
+    @Default
+    @Subcommand("help")
+    public void help(CommandSender sender) {
         send(sender, "<gray>Comandos:");
         for (String line : List.of(
                 "/vcondition script <nombre> <true|false>",
@@ -153,33 +54,94 @@ public final class VConditionCommand implements BasicCommand {
                 "/vcondition mob list",
                 "/vcondition mob kill [id]",
                 "/vcondition debug")) {
-            sender.sendMessage(MM.deserialize(" <white>" + line));
+            Text.send(sender, " <white>" + line);
         }
     }
 
-    @Override
-    public Collection<String> suggest(CommandSourceStack source, String[] args) {
-        if (args.length <= 1) return filter(List.of("script", "list", "reload", "mob", "debug"), args);
-        String first = args[0].toLowerCase(Locale.ROOT);
-        if (first.equals("script")) {
-            if (args.length == 2) return filter(plugin.scripts().all().stream().map(Script::name).toList(), args);
-            if (args.length == 3) return filter(List.of("true", "false"), args);
+    @Subcommand("script")
+    @Syntax("<nombre> [true|false]")
+    @CommandCompletion("@scripts true|false")
+    public void script(CommandSender sender, String name, @Optional String value) {
+        Script script = plugin.scripts().get(name);
+        if (script == null) {
+            send(sender, "<red>No existe el script <white>" + name);
+            return;
         }
-        if (first.equals("mob")) {
-            if (args.length == 2) return filter(List.of("spawn", "list", "kill"), args);
-            if (args.length == 3 && !args[1].equalsIgnoreCase("list")) {
-                return filter(plugin.mobs().all().stream().map(CustomMob::id).toList(), args);
-            }
-            if (args.length == 4 && args[1].equalsIgnoreCase("spawn")) {
-                return filter(Bukkit.getOnlinePlayers().stream().map(Entity::getName).toList(), args);
-            }
+        if (value == null) {
+            send(sender, "<gray>" + script.name() + ": " + state(plugin.scripts().isEnabled(script.name())));
+            return;
         }
-        return List.of();
+        String v = value.toLowerCase(Locale.ROOT);
+        if (!v.equals("true") && !v.equals("false")) {
+            send(sender, "<red>El valor debe ser <white>true</white> o <white>false");
+            return;
+        }
+        boolean enabled = v.equals("true");
+        plugin.scripts().setEnabled(script.name(), enabled);
+        send(sender, "<gray>Script <white>" + script.name() + "</white> " + state(enabled));
     }
 
-    private static List<String> filter(List<String> options, String[] args) {
-        String last = args.length == 0 ? "" : args[args.length - 1].toLowerCase(Locale.ROOT);
-        return options.stream().filter(o -> o.toLowerCase(Locale.ROOT).startsWith(last)).toList();
+    @Subcommand("list")
+    public void list(CommandSender sender) {
+        send(sender, "<gray>Scripts:");
+        for (Script s : plugin.scripts().all()) {
+            Text.send(sender, " " + state(plugin.scripts().isEnabled(s.name())) + " <white>" + s.name()
+                    + (s.description().isEmpty() ? "" : " <dark_gray>- <gray>" + s.description()));
+        }
+        if (plugin.scripts().all().isEmpty()) Text.send(sender, " <dark_gray>(ninguno)");
+    }
+
+    @Subcommand("reload")
+    public void reload(CommandSender sender) {
+        plugin.reload();
+        send(sender, "<green>Scripts y mobs recargados.");
+    }
+
+    @Subcommand("debug")
+    public void debug(CommandSender sender) {
+        boolean on = !plugin.actions().debug();
+        plugin.actions().debug(on);
+        send(sender, "<gray>Debug " + (on ? "<green>activado<gray>: mira la consola al probar" : "<red>desactivado"));
+    }
+
+    @Subcommand("mob spawn")
+    @Syntax("<id> [jugador]")
+    @CommandCompletion("@mobs @players")
+    public void mobSpawn(CommandSender sender, String id, @Optional OnlinePlayer target) {
+        Location at;
+        if (target != null) at = target.getPlayer().getLocation();
+        else if (sender instanceof Player p) at = p.getLocation();
+        else {
+            send(sender, "<red>Desde la consola indica un jugador: /vcondition mob spawn <id> <jugador>");
+            return;
+        }
+        LivingEntity e = plugin.mobs().spawn(id, at);
+        send(sender, e != null ? "<green>Spawneado <white>" + id : "<red>No existe el mob <white>" + id);
+    }
+
+    @Subcommand("mob list")
+    public void mobList(CommandSender sender) {
+        send(sender, "<gray>Mobs personalizados:");
+        for (CustomMob m : plugin.mobs().all()) {
+            long alive = plugin.mobs().live().stream().filter(e -> m.id().equalsIgnoreCase(MobManager.idOf(e))).count();
+            Text.send(sender, " <white>" + m.id() + " <dark_gray>(" + m.base().getKey().getKey()
+                    + (m.model() != null ? ", modelo " + m.model() : "") + ") <gray>vivos: " + alive);
+        }
+    }
+
+    @Subcommand("mob kill")
+    @Syntax("[id]")
+    @CommandCompletion("@mobs")
+    public void mobKill(CommandSender sender, @Optional String id) {
+        int count = 0;
+        for (LivingEntity e : new ArrayList<>(plugin.mobs().live())) {
+            if (id == null || id.equalsIgnoreCase(MobManager.idOf(e))) {
+                e.remove();
+                plugin.mobs().untrack(e);
+                count++;
+            }
+        }
+        send(sender, "<gray>Eliminados <white>" + count + "</white> mobs.");
     }
 
     private static String state(boolean enabled) {
@@ -187,6 +149,6 @@ public final class VConditionCommand implements BasicCommand {
     }
 
     private static void send(CommandSender sender, String msg) {
-        sender.sendMessage(MM.deserialize(PREFIX + msg));
+        Text.send(sender, PREFIX + msg);
     }
 }

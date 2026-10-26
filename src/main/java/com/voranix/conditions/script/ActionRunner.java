@@ -1,15 +1,13 @@
 package com.voranix.conditions.script;
 
 import com.voranix.conditions.VoranixConditions;
-import net.kyori.adventure.key.Key;
-import net.kyori.adventure.sound.Sound;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.minimessage.MiniMessage;
-import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Particle;
+import org.bukkit.SoundCategory;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Damageable;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
@@ -22,7 +20,6 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -31,8 +28,6 @@ import java.util.Locale;
  * Ejecuta las acciones de un trigger (ver {@link Action} para los formatos aceptados).
  */
 public final class ActionRunner {
-
-    private static final MiniMessage MM = MiniMessage.miniMessage();
 
     private static final int MAX_DEPTH = 4;
 
@@ -134,12 +129,16 @@ public final class ActionRunner {
                 PotionEffectType type = effectName != null ? require(Registries.effect(effectName), "efecto " + effectName) : null;
                 for (LivingEntity e : living(a.target(0), ctx)) {
                     if (type != null) e.removePotionEffect(type);
-                    else e.clearActivePotionEffects();
+                    else for (PotionEffect pe : e.getActivePotionEffects()) e.removePotionEffect(pe.getType());
                 }
             }
             case "heal" -> {
                 double amount = a.num(1, "amount", "value");
-                for (LivingEntity e : living(a.target(0), ctx)) e.heal(amount);
+                for (LivingEntity e : living(a.target(0), ctx)) {
+                    AttributeInstance max = e.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+                    double limit = max != null ? max.getValue() : e.getHealth() + amount;
+                    e.setHealth(Math.max(0, Math.min(limit, e.getHealth() + amount)));
+                }
             }
             case "damage" -> {
                 double amount = a.num(1, "amount", "value");
@@ -199,32 +198,31 @@ public final class ActionRunner {
 
             // ---- Mensajes, sonidos y partículas ----
             case "message" -> {
-                Component msg = MM.deserialize(a.text(1, "text"));
+                String msg = Text.color(a.text(1, "text"));
                 for (Entity e : select(a.target(0), ctx)) e.sendMessage(msg);
             }
             case "actionbar" -> {
-                Component msg = MM.deserialize(a.text(1, "text"));
-                for (Entity e : select(a.target(0), ctx)) e.sendActionBar(msg);
-            }
-            case "title" -> {
-                Component title = MM.deserialize(a.require(1, "title"));
-                String subText = a.get(2, "subtitle");
-                Component sub = subText != null ? MM.deserialize(subText) : Component.empty();
-                Title t = Title.title(title, sub, Title.Times.times(
-                        Duration.ofMillis(250), Duration.ofMillis(a.ticks(3, 50, "duration") * 50), Duration.ofMillis(500)));
+                String msg = a.text(1, "text");
                 for (Entity e : select(a.target(0), ctx)) {
-                    if (e instanceof Player p) p.showTitle(t);
+                    if (e instanceof Player p) Text.actionbar(p, msg);
                 }
             }
-            case "broadcast" -> Bukkit.getServer().sendMessage(MM.deserialize(a.text(0, "text")));
+            case "title" -> {
+                String title = Text.color(a.require(1, "title"));
+                String subText = a.get(2, "subtitle");
+                String sub = subText != null ? Text.color(subText) : "";
+                int stay = (int) a.ticks(3, 50, "duration");
+                for (Entity e : select(a.target(0), ctx)) {
+                    if (e instanceof Player p) p.sendTitle(title, sub, 5, stay, 10);
+                }
+            }
+            case "broadcast" -> Bukkit.broadcastMessage(Text.color(a.text(0, "text")));
             case "sound" -> {
-                String soundName = a.require(1, "sound");
+                String soundName = a.require(1, "sound").toLowerCase(Locale.ROOT);
                 float volume = (float) a.num(2, 1, "volume");
                 float pitch = (float) a.num(3, 1, "pitch");
-                Sound sound = Sound.sound(Key.key(soundName.toLowerCase(Locale.ROOT)), Sound.Source.MASTER, volume, pitch);
                 for (Entity e : select(a.target(0), ctx)) {
-                    Location l = e.getLocation();
-                    e.getWorld().playSound(sound, l.getX(), l.getY(), l.getZ());
+                    e.getWorld().playSound(e.getLocation(), soundName, SoundCategory.MASTER, volume, pitch);
                 }
             }
             case "particle" -> {

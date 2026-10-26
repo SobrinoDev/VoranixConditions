@@ -1,16 +1,18 @@
 package com.voranix.conditions;
 
+import co.aikar.commands.BukkitCommandManager;
+import co.aikar.commands.Locales;
 import com.voranix.conditions.command.VConditionCommand;
+import com.voranix.conditions.mob.CustomMob;
 import com.voranix.conditions.mob.MobManager;
 import com.voranix.conditions.model.BetterModelBridge;
 import com.voranix.conditions.model.ModelBridge;
 import com.voranix.conditions.script.ActionRunner;
+import com.voranix.conditions.script.Script;
 import com.voranix.conditions.script.ScriptManager;
 import org.bukkit.World;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.plugin.java.JavaPlugin;
-
-import java.util.List;
 
 public final class VoranixConditions extends JavaPlugin {
 
@@ -41,8 +43,17 @@ public final class VoranixConditions extends JavaPlugin {
             mobs.tick(tick);
         }, 1L, 1L);
 
-        registerCommand("vcondition", "Administra scripts y mobs de VoranixConditions", List.of("vc"),
-                new VConditionCommand(this));
+        registerCommands();
+    }
+
+    private void registerCommands() {
+        BukkitCommandManager manager = new BukkitCommandManager(this);
+        manager.getLocales().setDefaultLocale(Locales.SPANISH);
+        manager.getCommandCompletions().registerCompletion("scripts",
+                c -> scripts.all().stream().map(Script::name).toList());
+        manager.getCommandCompletions().registerCompletion("mobs",
+                c -> mobs.all().stream().map(CustomMob::id).toList());
+        manager.registerCommand(new VConditionCommand(this));
     }
 
     public void reload() {
